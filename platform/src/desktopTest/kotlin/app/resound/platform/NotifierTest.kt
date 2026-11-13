@@ -1,4 +1,7 @@
 package app.resound.platform
+import app.resound.data.AppDirs
+import app.resound.data.KeyValueStore
+import app.resound.data.FileKeyValueStore
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

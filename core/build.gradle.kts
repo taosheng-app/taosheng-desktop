@@ -11,6 +11,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":base"))
+            api(project(":platform"))
             api(libs.androidx.roomRuntime)
             api(libs.androidx.sqliteBundled)
         }

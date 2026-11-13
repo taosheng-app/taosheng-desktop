@@ -10,11 +10,21 @@ kotlin {
         commonMain.dependencies {
             api(libs.kotlinx.coroutinesCore)
         }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
         val desktopMain by getting {
             dependencies {
-                api(project(":base"))
+                implementation(project(":base"))
                 implementation(libs.java.keyring)
                 implementation(libs.org.json)
+            }
+        }
+        val desktopTest by getting {
+            dependencies {
+                implementation(project(":base"))
+                implementation(libs.kotlin.testJunit)
+                implementation(libs.kotlinx.coroutinesTest)
             }
         }
     }
