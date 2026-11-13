@@ -1,9 +1,16 @@
 [versions]
 kotlin = "2.4.21"
+ksp = "2.3.13"
 composeMultiplatform = "1.12.2"
 # Material3 独立于 Compose Multiplatform 发布，版本号不同步
 composeMaterial3 = "1.9.0"
 kotlinx-coroutines = "1.10.2"
+room = "2.8.5"
+sqlite = "2.6.2"
+onnxruntime = "1.31.1"
+okhttp = "4.12.0"
+orgJson = "20240303"
+junit = "4.13.2"
 
 [libraries]
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
@@ -11,9 +18,21 @@ compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", v
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "composeMaterial3" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+kotlinx-coroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutinesTest = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+androidx-roomRuntime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-roomCompiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+androidx-sqliteBundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
+onnxruntime = { module = "com.microsoft.onnxruntime:onnxruntime", version.ref = "onnxruntime" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+org-json = { module = "org.json:json", version.ref = "orgJson" }
+junit = { module = "junit:junit", version.ref = "junit" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+room = { id = "androidx.room", version.ref = "room" }
