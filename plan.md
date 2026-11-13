@@ -2,7 +2,7 @@
 
 把安卓版 [涛声 TaoSheng](../TaoSheng)（`D:\projects\github\TaoSheng`，包名 `app.resound`，MIT）翻译为 Kotlin Multiplatform + Compose Multiplatform 桌面应用，支持 Windows、macOS、Linux，**Windows 优先保证完整**。
 
-状态：计划已由负责人确认（见“已确认的决定”）；每一波用一张任务卡，卡放在 `docs/任务卡/`。**波次 0（卡 001）已完成，四项验证通过**，见 `docs/任务卡/001-交付说明.md`；定案版本：Room 2.8.5、sqlite-bundled 2.6.2、KSP 2.3.13、onnxruntime 1.31.1。
+状态：计划已由负责人确认（见“已确认的决定”）；每一波用一张任务卡，卡放在 `docs/任务卡/`。**波次 0（卡 001）、波次 1（卡 002）已完成**，见 `docs/任务卡/001-交付说明.md`；定案版本：Room 2.8.5、sqlite-bundled 2.6.2、KSP 2.3.13、onnxruntime 1.31.1。
 
 ## 已确认的决定
 
