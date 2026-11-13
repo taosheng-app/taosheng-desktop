@@ -38,5 +38,3 @@ data class LlmReply(
 )
 
 class LlmInputLimitException(message: String = "内容超出所选模型的容量，请换用容量更大的模型") : IllegalArgumentException(message)
-
-data class LlmPreset(val id: String, val name: String, val baseUrl: String, val model: String)

@@ -15,6 +15,7 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(project(":ui"))
+                implementation(libs.compose.material3)
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutinesSwing)
             }

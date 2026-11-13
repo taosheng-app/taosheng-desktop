@@ -27,6 +27,14 @@ data class SegmentWithLines(@Embedded val segment: SegmentEntity,
 
 @Dao
 abstract class TranscribeDao {
+    /** 桌面端粘贴文字入口：保留成一个已完成的文字录入段，随后复用正式 DigestRunner。 */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    abstract suspend fun insertDesktopTextSegment(row: SegmentEntity): Long
+
+    /** Desktop file import: durable row before any network request, then regular queue processing. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    abstract suspend fun insertImportedAudioSegment(row: SegmentEntity): Long
+
     /** 只读时间元数据；空白句子不算首次转写。 */
     @Query("SELECT MIN(startAt) FROM transcript_lines WHERE LENGTH(TRIM(text, CHAR(9) || CHAR(10) || CHAR(13) || ' ' || CHAR(12288))) > 0")
     abstract fun onboardingFirstTranscript(): Flow<Long?>

@@ -28,6 +28,9 @@ class DesktopPlatform(
     val notifier = DesktopNotifier(prefs.get("notifications"))
     val scheduler = Scheduler(File(dirs.data, "scheduler.json"), clock, network, scope)
 
+    /** 开机自启（系统原生机制）；设置页读写它。 */
+    val autoStart: AutoStart = DesktopAutoStart()
+
     /** 对应 `SecretStore(context, prefsName, alias)`：密文存在同名 prefs 里。 */
     fun secretStore(prefsName: String, alias: String) = SecretStore(prefs.get(prefsName), alias, masterKeys)
 

@@ -20,6 +20,7 @@ kotlin {
                 implementation(libs.onnxruntime)
                 implementation(libs.okhttp)
                 implementation(libs.org.json)
+                implementation("org.apache.commons:commons-compress:1.27.1")
             }
         }
         val desktopTest by getting {

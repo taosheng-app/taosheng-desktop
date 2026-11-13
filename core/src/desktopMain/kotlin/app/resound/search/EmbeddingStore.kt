@@ -45,13 +45,13 @@ object Vectors {
 }
 
 class EmbeddingStore(private val db: CaptureDatabase) {
-    data class Document(val kind: String, val id: Long, val text: String)
-    private val documents = """SELECT 'event' AS kind,id,title||char(10)||summary||char(10)||pointsJson AS text
+    data class Document(val kind: String, val id: Long, val text: String, val at: Long = 0L)
+    private val documents = """SELECT 'event' AS kind,id,title||char(10)||summary||char(10)||pointsJson AS text,startAt AS at
         FROM memory_events WHERE deleted=0 UNION ALL
-        SELECT 'item',i.id,i.category||char(10)||i.content FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.deleted=0 AND (e.id IS NULL OR e.deleted=0)"""
+        SELECT 'item',i.id,i.category||char(10)||i.content,i.createdAt FROM memory_items i LEFT JOIN memory_events e ON e.id=i.eventId WHERE i.deleted=0 AND (e.id IS NULL OR e.deleted=0)"""
     suspend fun pending(model: String): List<Document> = db.rawQuery("""SELECT d.* FROM ($documents) d
         LEFT JOIN embeddings v ON v.kind=d.kind AND v.refId=d.id AND v.model=? WHERE v.refId IS NULL LIMIT 64""", model) { r ->
-        Document(r.text(0), r.long(1), r.text(2))
+        Document(r.text(0), r.long(1), r.text(2), r.long(3))
     }
     suspend fun save(document: Document, model: String, vector: FloatArray) {
         // 算向量期间内容可能变化或被删除，只有快照仍一致才落库。
@@ -60,4 +60,17 @@ class EmbeddingStore(private val db: CaptureDatabase) {
             SELECT kind,id,?,?,?,? FROM ($documents) WHERE kind=? AND id=? AND text=?""",
             model, normalized.size, Vectors.encode(normalized), System.currentTimeMillis(), document.kind, document.id, document.text)
     }
+
+    suspend fun nearest(model: String, query: FloatArray, limit: Int = 20): List<RankedDocument> {
+        val normalized = Vectors.normalize(query)
+        return db.rawQuery("""SELECT d.kind,d.id,d.text,d.at,v.vector,v.dim FROM ($documents) d
+            JOIN embeddings v ON v.kind=d.kind AND v.refId=d.id AND v.model=?""", model) { row ->
+            runCatching {
+                val vector = Vectors.decode(row.blob(4), row.int(5))
+                RankedDocument(Document(row.text(0), row.long(1), row.text(2), row.long(3)), Vectors.cosine(normalized, vector))
+            }.getOrNull()
+        }.filterNotNull().sortedByDescending { it.score }.take(limit)
+    }
+
+    data class RankedDocument(val document: Document, val score: Double)
 }

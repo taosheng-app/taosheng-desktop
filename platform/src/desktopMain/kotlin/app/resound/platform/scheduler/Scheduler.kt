@@ -118,6 +118,8 @@ class Scheduler(
 
     fun observe(name: String): Flow<TaskInfo?> = changes.map { status(name) }
 
+    fun observeByTag(tag: String): Flow<List<TaskInfo>> = changes.map { statusByTag(tag) }
+
     /**
      * 执行所有到期且满足约束的任务一轮，返回本轮启动的任务数。
      * 测试里先推进假时钟再调用；调用本身会等本轮任务全部完成。
