@@ -1,61 +1,59 @@
 package app.resound.desktop
 
-import app.resound.data.AppDirs
 import app.resound.data.CaptureDatabase
 import app.resound.data.SegmentEntity
 import app.resound.data.TranscriptLineEntity
 import app.resound.data.rawQuery
-import app.resound.transcribe.AndroidTranscribeSettings
-import app.resound.transcribe.AsrAudio
-import app.resound.transcribe.ConfiguredAsrProvider
-import app.resound.transcribe.TranscribeRunner
-import app.resound.transcribe.TranscribeSource
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
-import java.io.File
-import java.io.IOException
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
-import java.util.concurrent.TimeUnit
 import app.resound.diagnostics.LlmDiagnostics
-import app.resound.search.SearchTokens
+import app.resound.diary.DiaryRepository
+import app.resound.diary.LocalDiaryRepository
+import app.resound.digest.AndroidDigestSettings
+import app.resound.digest.DigestRunner
+import app.resound.digest.LlmClient
+import app.resound.digest.ManualTodos
+import app.resound.digest.MemoryEvent
+import app.resound.digest.RoomManualTodos
+import app.resound.digest.RoomMemoryRepository
+import app.resound.platform.DesktopPlatform
+import app.resound.platform.audio.JavaxAudioRecorder
+import app.resound.platform.scheduler.TaskInfo
+import app.resound.platform.scheduler.TaskState
+import app.resound.review.DesktopReviewRepository
 import app.resound.search.EmbeddingScheduler
 import app.resound.search.EmbeddingStore
 import app.resound.search.LocalEmbedder
 import app.resound.search.SearchModels
-import app.resound.search.Vectors
-import app.resound.platform.scheduler.TaskInfo
-import app.resound.platform.scheduler.TaskState
-import app.resound.digest.AndroidDigestSettings
-import app.resound.digest.DigestRunner
-import app.resound.digest.LlmClient
-import app.resound.platform.DesktopPlatform
-import app.resound.platform.audio.JavaxAudioRecorder
+import app.resound.search.SearchTokens
 import app.resound.topic.DesktopTopicService
 import app.resound.topic.Topic
 import app.resound.topic.createDesktopTopicService
+import app.resound.transcribe.AndroidTranscribeSettings
 import app.resound.transcribe.AsrAudioReader
-import app.resound.diary.LocalDiaryRepository
-import app.resound.diary.DiaryRepository
-import app.resound.digest.RoomMemoryRepository
-import app.resound.review.DesktopReviewRepository
+import app.resound.transcribe.ConfiguredAsrProvider
+import app.resound.transcribe.TranscribeRunner
+import app.resound.transcribe.TranscribeSource
+import app.resound.usage.UsagePurpose
 import app.resound.voiceprint.CampPlusEmbedding
 import app.resound.voiceprint.LocalVoiceprintRepository
 import app.resound.voiceprint.SampleAudioStore
 import app.resound.voiceprint.VoiceprintRecorder
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.util.UUID
-import java.security.MessageDigest
-import java.nio.file.AtomicMoveNotSupportedException
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import java.time.LocalDate
+import java.util.UUID
 
 data class DesktopSearchResult(val kind: String, val id: Long, val at: Long, val title: String, val excerpt: String)
 data class DesktopAskCitation(val ref: Int, val source: DesktopSearchResult)
@@ -97,7 +95,7 @@ class DesktopAppGraph(val platform: DesktopPlatform) : AutoCloseable {
     val digestSettings = AndroidDigestSettings(platform.prefs, platform.masterKeys, llm) { reply ->
         database.memory().addUsage(
             LocalDate.now().toString(), reply.promptTokens, reply.completionTokens,
-            app.resound.usage.UsagePurpose.Digest,
+            UsagePurpose.Digest,
         )
     }.also { settingsRef = it }
 
@@ -111,13 +109,30 @@ class DesktopAppGraph(val platform: DesktopPlatform) : AutoCloseable {
         template = { resource("/prompts/digest.md") },
         networkAllowed = platform.network::isOnline,
     )
+    val digestRunning = digestRunner.running
+    val digestLast = digestRunner.last
 
-    private val memoryRepository = RoomMemoryRepository(
+    val memoryRepository = RoomMemoryRepository(
         dao = database.memory(),
         runner = digestRunner,
         runNowAction = { platform.scope.launch { digestRunner.run(force = true, manual = true) } },
         scope = platform.scope,
     )
+
+    val manualTodos: ManualTodos = RoomManualTodos(
+        dao = database.memory(),
+        scope = platform.scope,
+        credentials = { digestSettings.skillCredentials(null) },
+        chatJson = digestSettings.digestRequest(llm),
+        recordUsage = { reply ->
+            database.memory().addUsage(
+                LocalDate.now().toString(), reply.promptTokens, reply.completionTokens,
+                UsagePurpose.Digest,
+            )
+        },
+        hasBackup = digestSettings.failover::hasBackup,
+    )
+
     val diary: DiaryRepository = LocalDiaryRepository(
         cacheDirectory = platform.dirs.cache.toPath(),
         prefs = platform.prefs.get("diary"),
@@ -174,8 +189,10 @@ class DesktopAppGraph(val platform: DesktopPlatform) : AutoCloseable {
     fun startMicrophoneRecording(): String = microphoneCapture.start()
     suspend fun stopMicrophoneRecording(): String = microphoneCapture.stop()
 
+    fun eventsOn(date: LocalDate): Flow<List<MemoryEvent>> = memoryRepository.events(date)
     fun topicsToday(): Flow<List<Topic>> = topics.observeDay(LocalDate.now())
     suspend fun exportDiary(from: LocalDate, to: LocalDate, includeLines: Boolean) = diary.exportFile(from, to, includeLines)
+    suspend fun previewDiaryMarkdown(from: LocalDate, to: LocalDate, includeLines: Boolean) = diary.markdown(from, to, includeLines)
     suspend fun previewTopic(eventIds: List<Long>) = topics.previewFromEvents(eventIds)
     suspend fun createTopic(eventIds: List<Long>, name: String?): Result<Long> = topics.createFromEvents(eventIds, name)
     suspend fun regenerateTopic(id: Long) = topics.regenerate(id)
@@ -276,6 +293,9 @@ class DesktopAppGraph(val platform: DesktopPlatform) : AutoCloseable {
     }
 
     suspend fun recordMyVoice(progress: (Int) -> Unit): Result<Unit> {
+        if (microphoneCapture.state.value.isRecording) {
+            return Result.failure(IllegalStateException("麦克风正在录音，请先停止当前录音后再录入声纹。"))
+        }
         val pcm = VoiceprintRecorder.record(progress)
         return voiceprints.enrollPcm(pcm)
     }
@@ -314,7 +334,7 @@ class DesktopAppGraph(val platform: DesktopPlatform) : AutoCloseable {
         val reply = llm.chatJson(digestSettings.preset, key, system, user)
         database.memory().addUsage(
             LocalDate.now().toString(), reply.promptTokens, reply.completionTokens,
-            app.resound.usage.UsagePurpose.Ask,
+            UsagePurpose.Ask,
         )
         val response = JSONObject(reply.content)
         val answer = response.optString("answer").trim().take(4000)

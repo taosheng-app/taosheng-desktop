@@ -5,9 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
+import app.resound.ui.TaoShengTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,7 +21,7 @@ import androidx.compose.ui.unit.dp
 /** 共享 UI：所有平台通用，平台相关代码放到各自的 source set。 */
 @Composable
 fun App() {
-    MaterialTheme {
+    TaoShengTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             var clicks by remember { mutableStateOf(0) }
 
